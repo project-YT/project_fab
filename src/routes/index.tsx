@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const { data: products } = useProducts();
   const { data: categories } = useCategories();
-  const { data: banners } = useBanners();
+  const { data: banners, loading: bannersLoading } = useBanners();
   const banner = banners[0];
   const featured = products.filter((p) => p.featured).slice(0, 8);
   const newArrivals = products.filter((p) => p.newArrival).slice(0, 8);
@@ -20,69 +20,67 @@ function Home() {
   return (
     <SiteLayout>
       {/* HERO */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-12 lg:px-8 lg:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="flex flex-col justify-center"
-          >
-            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-secondary/60 px-3 py-1 text-[11px] uppercase tracking-widest text-secondary-foreground">
-              <Sparkles className="h-3 w-3" /> Spring 2026 Edit
-            </div>
-            <h1 className="mt-5 font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-              Softly spoken,
-              <br />
-              <span className="italic text-primary">effortlessly worn.</span>
-            </h1>
-            <p className="mt-5 max-w-md text-base text-muted-foreground">
-              {banner?.subtitle ??
-                "Discover breathable weaves, sky-lit hues, and considered silhouettes designed for the modern everyday."}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/shop"
-                className="group inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-sm font-medium text-background transition hover:opacity-90"
-              >
-                Shop the edit
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link
-                to="/categories"
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-7 py-3.5 text-sm font-medium hover:bg-muted"
-              >
-                Browse categories
-              </Link>
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-            className="relative"
-          >
-            <div className="gradient-hero absolute inset-0 -z-10 rounded-[2.5rem] blur-3xl opacity-70" />
-            <div className="relative overflow-hidden rounded-[2rem] shadow-elevated">
-              <img
-                src={
-                  banner?.image ??
-                  "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=1200&q=80"
-                }
-                alt="Editorial hero"
-                className="aspect-[4/5] w-full object-cover"
-              />
-            </div>
-            <div className="absolute -bottom-6 left-6 hidden gap-2 rounded-2xl bg-background/90 p-4 shadow-soft backdrop-blur md:flex">
-              <div className="h-10 w-10 rounded-full bg-primary" />
-              <div>
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">Now trending</div>
-                <div className="text-sm font-medium">Sky Linen Collection</div>
+      {!bannersLoading && banner && (
+        <section className="relative overflow-hidden">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-12 lg:px-8 lg:py-20">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+              className="flex flex-col justify-center"
+            >
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-secondary/60 px-3 py-1 text-[11px] uppercase tracking-widest text-secondary-foreground">
+                <Sparkles className="h-3 w-3" /> Spring 2026 Edit
               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+              <h1 className="mt-5 font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+                Softly spoken,
+                <br />
+                <span className="italic text-primary">effortlessly worn.</span>
+              </h1>
+              <p className="mt-5 max-w-md text-base text-muted-foreground">
+                {banner.subtitle}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  to="/shop"
+                  className="group inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-sm font-medium text-background transition hover:opacity-90"
+                >
+                  Shop the edit
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  to="/categories"
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-7 py-3.5 text-sm font-medium hover:bg-muted"
+                >
+                  Browse categories
+                </Link>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="relative"
+            >
+              <div className="gradient-hero absolute inset-0 -z-10 rounded-[2.5rem] blur-3xl opacity-70" />
+              <div className="relative overflow-hidden rounded-[2rem] shadow-elevated">
+                <img
+                  src={banner.image}
+                  alt="Editorial hero"
+                  className="aspect-[4/5] w-full object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-6 left-6 hidden gap-2 rounded-2xl bg-background/90 p-4 shadow-soft backdrop-blur md:flex">
+                <div className="h-10 w-10 rounded-full bg-primary" />
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground">Now trending</div>
+                  <div className="text-sm font-medium">Sky Linen Collection</div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* USP STRIP */}
       <section className="border-y border-border/60 bg-muted/30">
