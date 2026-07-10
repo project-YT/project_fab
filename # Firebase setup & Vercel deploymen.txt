@@ -1,0 +1,208 @@
+# Firebase setup & Vercel deployment
+
+This project is a **Firebase-only** e-commerce app (Auth + Firestore + Storage) built with TanStack Start + React. No third-party cloud services are used.
+
+> Initial admin email used across this guide: **`projectet235@gmail.com`**.
+> You can change it any time via the `VITE_FIREBASE_ADMIN_EMAILS` env variable — see [Step 6](#6-designate-your-admin-account).
+
+---
+
+## 1. Create your Firebase project
+
+1. Go to <https://console.firebase.google.com> and click **Add project**.
+2. Name it (e.g. `maison-auree`), disable Analytics if not needed, and click **Create project**.
+
+## 2. Register a Web App and copy the config
+
+1. In the Firebase console, open **Project settings → General**.
+2. Under *Your apps* click the **`</>` (Web)** icon, give it a nickname, and register.
+3. Copy the `firebaseConfig` values shown. You'll paste them into `.env` in the next step.
+
+## 3. Add environment variables
+
+Duplicate `.env.example` in the project root to `.env` and fill in:
+
+```bash
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:1234:web:abcd
+
+# Comma-separated list of admin emails. These emails will see the /admin dashboard.
+VITE_FIREBASE_ADMIN_EMAILS=projectet235@gmail.com
+```
+
+> **Never commit `.env`** — it is already in `.gitignore`. On Vercel, add the same
+> variables in *Project → Settings → Environment Variables*.
+
+## 4. Enable Email/Password Authentication
+
+1. In the Firebase console open **Build → Authentication → Get started**.
+2. On the **Sign-in method** tab, enable **Email/Password**.
+3. That's it — no other providers are required.
+
+## 5. Enable Firestore
+
+1. Open **Build → Firestore Database → Create database**.
+2. Start in **Production mode** and pick a region close to your customers.
+3. Once created, open the **Rules** tab and paste the rules below. Click **Publish**.
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public read for storefront catalog
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders: anyone can create (guest checkout / cash on delivery).
+    // Only admins can list, read others, update, or delete.
+    match /orders/{id} {
+      allow create: if request.resource.data.total is number
+                    && request.resource.data.status == "pending";
+      allow read: if isAdmin() || (request.auth != null
+                                   && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    function isAdmin() {
+      // Admins are identified by email. Keep this list in sync with
+      // VITE_FIREBASE_ADMIN_EMAILS on the client.
+      return request.auth != null
+          && request.auth.token.email in [
+               'projectet235@gmail.com'
+             ];
+    }
+  }
+}
+```
+
+> Every additional admin email must be added **both** here (rules) and in
+> `VITE_FIREBASE_ADMIN_EMAILS`. The list in the rules is the security boundary.
+
+## 6. Designate your admin account
+
+The dashboard at `/admin` is gated by an email allow-list. There is **no
+hardcoded admin credential** in the source code — you create the initial
+admin yourself, one of two ways:
+
+### Option A — via the Firebase console (recommended)
+
+1. Go to **Authentication → Users → Add user**.
+2. Enter `projectet235@gmail.com` and a strong password of your choice.
+3. Save. You can now sign in at `/auth` and be redirected to `/admin`.
+
+### Option B — via the app
+
+1. Make sure the email is in `VITE_FIREBASE_ADMIN_EMAILS` (see step 3).
+2. Visit `/auth`, click **Sign up**, and register `projectet235@gmail.com`
+   with a strong password.
+3. The app grants admin access based on the email — nothing else is needed.
+
+To add more admins later, append their email to `VITE_FIREBASE_ADMIN_EMAILS`
+**and** to the `isAdmin()` list in your Firestore rules, then redeploy.
+
+## 7. Enable Storage
+
+1. Open **Build → Storage → Get started**.
+2. Accept the default location.
+3. Open the **Rules** tab and paste:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.email in [
+                        'projectet235@gmail.com'
+                      ];
+    }
+  }
+}
+```
+
+Add each admin email here as well.
+
+## 8. Run it locally
+
+```bash
+bun install
+bun run dev
+```
+
+Open <http://localhost:8080>. Sign in at `/auth` with your admin account,
+then go to `/admin` to add categories, products (with images), and manage
+orders.
+
+## 9. Deploy to Vercel
+
+This app is a Vite / TanStack Start app that deploys cleanly on Vercel.
+
+1. Push the repo to GitHub / GitLab / Bitbucket.
+2. In Vercel, click **Add New → Project** and import the repo.
+3. Framework preset: **Vite** (auto-detected). Build command `bun run build`
+   (or `npm run build`), output `dist/` (default).
+4. In *Settings → Environment Variables* add every `VITE_FIREBASE_*` entry
+   from `.env`.
+5. Click **Deploy**.
+
+### Authorised domains
+
+After Vercel gives you a URL, open **Firebase Console → Authentication →
+Settings → Authorized domains** and add:
+
+- your Vercel preview domain (e.g. `your-project.vercel.app`)
+- any custom domain you connect
+
+Without this, sign-in from production will fail with `auth/unauthorized-domain`.
+
+---
+
+## What you get out of the box
+
+- **Storefront**: home, shop, product detail, cart, checkout, order confirmation.
+- **Cash on delivery** checkout — no payment processor required.
+- **Admin dashboard** at `/admin` with:
+  - Product CRUD with drag-and-drop-style image upload to Firebase Storage
+  - Category management
+  - Order list with status updates (pending → confirmed → shipped → delivered)
+  - Revenue and stock overview
+- **Auth**: Firebase email/password.
+- **Security**: All admin writes are gated by Firestore/Storage rules — the
+  client-side allow-list is a UX signal only.
+
+## Troubleshooting
+
+- **`Firebase is not configured yet` banner** — your `.env` is missing or the
+  server hasn't restarted after editing it. Restart `bun run dev`.
+- **`auth/unauthorized-domain`** — add the Vercel domain to Firebase Auth
+  authorized domains (see above).
+- **`permission-denied` writing orders / products** — recheck the Firestore
+  rules from step 5; ensure `isAdmin()` contains your email exactly.
+- **Images upload but 403 on read** — the Storage rules from step 7 must
+  `allow read: if true` under `products/{allPaths=**}`.
+*** Add File: .env.example
+# Firebase Web App configuration
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+
+# Comma-separated list of admin emails.
+# These accounts will see the /admin dashboard after signing in.
+# The initial admin below MUST also be created in Firebase Auth
+# (either via the console or by signing up at /auth).
+VITE_FIREBASE_ADMIN_EMAILS=projectet235@gmail.com
